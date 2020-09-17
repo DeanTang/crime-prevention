@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Hello!</title>
+    
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <style>
+      .btn-collect {
+        margin: auto;
+        position: relative;
+      }
+      .btn-collect button {
+        width: 50%;
+        margin: 0;
+        position: relative;
+        top: 50%;
+        left: 50%;
+        -ms-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+      }
+      .empty {
+        padding: 30px;
+      }
+    </style>
+  </head>  
+  <body>
+    <div class="jumbotron text-center">
+      <h1>Crime Prototype</h1>
+    </div>
+    <div class="container">
+      <div class="row">
+        <div class="col-6 btn-collect">
+          <button type="button" onclick="startRecording()">Start</button>
+        </div>
+        <div class="col-6 btn-collect">
+          <button type="button" onclick="stopRecording()">Stop</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="empty">
+          
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-12 btn-collect">
+          <button type="button" onmousedown="actionHappening()" onmouseup="actionNotHappening()" ontouchstart="actionHappening()" ontouchend="actionNotHappening()">I'm doing the action!</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="accelerometerArea">
+      
+    </div>
+    <div id="geolocationArea">
+      
+    </div>
+<!--     <div id="distanceArea">
+      
+    </div> -->
+    <div id="orientationArea">
+      
+    </div>
+    <div id="action">
+    </div>
+    <div id="dbArea">
+      
+    </div>
+  </body>
+  <script language = "Javascript">
+    var x, y, z;
+    var lat, lon;
+    var alpha, beta, gamma;
+    var geoID;
+    var streamData = new Boolean("true");
+    var action = 0;
+    
+    document.getElementById("action").innerHTML = "Action: "+ action + "<br>"; 
+    
+    function actionHappening() {
+      action = 1;
+      document.getElementById("action").innerHTML = "Action: "+ action + "<br>";
+    }
+    
+    function actionNotHappening() {
+      action = 0;
+      document.getElementById("action").innerHTML = "Action: "+ action + "<br>";
+    }
+    
+    function handleAccelerationEvent(event) {
+      x = event.accelerationIncludingGravity.x;
+
+      y = event.accelerationIncludingGravity.y;
+
+      z = event.accelerationIncludingGravity.z;
+      
+      document.getElementById("accelerometerArea").innerHTML = "Acc: " + x + "," + y + "," + z + "<br>";
+    }
+    // function distance(lat1, lon1, lat2, lon2, unit) {
+    //     var radlat1 = Math.PI * lat1/180
+    //     var radlat2 = Math.PI * lat2/180
+    //     var radlon1 = Math.PI * lon1/180
+    //     var radlon2 = Math.PI * lon2/180
+    //     var theta = lon1-lon2
+    //     var radtheta = Math.PI * theta/180
+    //     var dist = Math.sin(radlat1) * Math.sin(radlat2) + Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
+    //     dist = Math.acos(dist)
+    //     dist = dist * 180/Math.PI
+    //     dist = dist * 60 * 1.1515
+    //     if (unit=="K") { dist = dist * 1.609344 }
+    //     if (unit=="N") { dist = dist * 0.8684 }
+    //     return dist
+    //   }
+    function showPosition(position) {
+        lat =  position.coords.latitude;
+        lon =  position.coords.longitude;
+        document.getElementById("geolocationArea").innerHTML = "Latitude: " + lat +
+        "<br>Longitude: " + lon;
+        
+        //var dist= distance(-37.8626656, 145.1353959, latOrigin, longOrigin,"K");
+        //document.getElementById("distanceArea").innerHTML = "Distance from nearest bank: " + dist+ "<br>";
+    }
+    function errorHandler(err) {
+        if(err.code == 1) {
+           alert("Error: Access is denied!");
+        } else if( err.code == 2) {
+           alert("Error: Position is unavailable!");
+        }
+     }
+    function handleOrientationEvent(event) {
+      alpha = event.alpha;
+      beta = event.beta;
+      gamma = event.gamma;
+      
+      document.getElementById("orientationArea").innerHTML = "Alpha: " + alpha + "<br>" + "Beta: " + beta + "<br>" + "Gamma: " + gamma + "<br>" ;
+    }
+    function sendData() {
+      if (streamData)
+      {
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+          if (this.readyState == 4 && this.status == 200) {
+            document.getElementById("dbArea").innerHTML = this.responseText;
+          }
+        };
+        xhttp.open("GET", "https://data-guilty.glitch.me/add?accx="+x+"&accy="+y+"&accz="+z+"&lat="+lat+"&lon="+lon+"&alpha="+alpha+"&beta="+beta+"&gamma="+gamma+"&action="+action, true);
+        xhttp.send();
+        setTimeout(sendData, 1000);
+      } 
+    }
+    function startRecording() {
+      streamData = true;
+      if(window.DeviceMotionEvent) {
+        window.addEventListener('devicemotion', handleAccelerationEvent);
+      }
+      if (navigator.geolocation) {
+        var options = {timeout:60};
+        geoID = navigator.geolocation.watchPosition(showPosition, errorHandler,options);
+      } else {
+        x.innerHTML = "Geolocation is not supported by this browser.";
+      }
+      if (window.DeviceOrientationEvent)
+      {
+        window.addEventListener("deviceorientation", handleOrientationEvent);
+      }
+      sendData();
+    }
+    
+    function stopRecording() {
+      window.removeEventListener("devicemotion", handleAccelerationEvent);
+      navigator.geolocation.clearWatch(geoID);
+      window.removeEventListener("deviceorientation", handleOrientationEvent);
+      streamData = false;
+    }
+  </script>
+</html>
